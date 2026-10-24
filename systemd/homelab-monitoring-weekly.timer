@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly homelab summary (Sunday 09:00 Europe/Berlin)
+
+[Timer]
+OnCalendar=Sun 09:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=homelab-monitoring-weekly.service
+
+[Install]
+WantedBy=timers.target

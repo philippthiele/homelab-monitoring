@@ -1,0 +1,12 @@
+[Unit]
+Description=Send weekly homelab monitoring summary
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=philipp
+Group=philipp
+WorkingDirectory=/home/philipp/homelab-monitoring
+EnvironmentFile=/home/philipp/homelab-monitoring/.env
+ExecStart=/usr/bin/python3 /home/philipp/homelab-monitoring/monitor.py --weekly

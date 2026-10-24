@@ -1,0 +1,20 @@
+[Unit]
+Description=Homelab monitoring daemon (checks, dashboard, Telegram alerts)
+After=network-online.target docker.service
+Wants=network-online.target
+OnFailure=homelab-monitoring-failure.service
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=philipp
+Group=philipp
+WorkingDirectory=/home/philipp/homelab-monitoring
+EnvironmentFile=/home/philipp/homelab-monitoring/.env
+ExecStart=/usr/bin/python3 /home/philipp/homelab-monitoring/monitor.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

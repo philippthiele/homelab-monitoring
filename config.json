@@ -1,0 +1,373 @@
+{
+  "settings": {
+    "check_interval_seconds": 60,
+    "failure_threshold": 2,
+    "startup_grace_seconds": 120,
+    "cycle_timeout_seconds": 180,
+    "retention_days": 120,
+    "dashboard_host": "0.0.0.0",
+    "dashboard_port": 8090,
+    "dashboard_refresh_seconds": 20,
+    "data_dir": "data",
+    "db_file": "monitor.db",
+    "weekly_label": "Sonntag 09:00 (Europe/Berlin)",
+    "telegram_timeout_seconds": 15,
+    "max_message_chars": 4096
+  },
+  "groups": [
+    {"id": "core", "name": "Kern"},
+    {"id": "backups", "name": "Backups"},
+    {"id": "apps", "name": "Self-hosted"},
+    {"id": "home", "name": "Smart Home"},
+    {"id": "media", "name": "Medien"}
+  ],
+  "not_monitored": [
+    {"name": "Nextcloud", "reason": "durch Ente ersetzt"},
+    {"name": "Kosync", "reason": "stillgelegt und vom Pi entfernt"},
+    {"name": "TinyMediaManager", "reason": "seit 11 Monaten gestoppt"},
+    {"name": "Netflix-Kiosk", "reason": "deaktiviert"},
+    {"name": "rpi-clone", "reason": "manuelles Werkzeug"},
+    {"name": "dphys-swapfile.service", "reason": "bekannter Fehler, zram-swap aktiv"}
+  ],
+  "checks": [
+    {
+      "id": "caddy",
+      "name": "Caddy",
+      "group": "core",
+      "link": "http://192.168.178.62/",
+      "checks": [
+        {"type": "systemd", "unit": "caddy", "label": "systemd"},
+        {"type": "http", "url": "http://127.0.0.1/", "expect_status": [200], "label": "HTTP", "timeout": 5}
+      ]
+    },
+    {
+      "id": "cloudflared",
+      "name": "Cloudflare Tunnel",
+      "group": "core",
+      "checks": [
+        {"type": "systemd", "unit": "cloudflared", "label": "systemd"},
+        {"type": "http", "url": "http://127.0.0.1:20241/ready", "expect_status": [200], "label": "Tunnel", "timeout": 5}
+      ]
+    },
+    {
+      "id": "tailscale",
+      "name": "Tailscale",
+      "group": "core",
+      "checks": [
+        {"type": "systemd", "unit": "tailscaled", "label": "systemd"},
+        {
+          "type": "command",
+          "cmd": ["tailscale", "status", "--json"],
+          "expect_json": {"BackendState": "Running", "Self.Online": true},
+          "label": "Status",
+          "timeout": 8
+        }
+      ]
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "group": "core",
+      "checks": [
+        {"type": "systemd", "unit": "docker", "label": "systemd"},
+        {
+          "type": "command",
+          "cmd": ["docker", "info", "--format", "{{.ServerVersion}}"],
+          "expect_stdout_regex": "^\\S+$",
+          "label": "Daemon",
+          "timeout": 8
+        }
+      ]
+    },
+    {
+      "id": "pihole",
+      "name": "Pi-hole",
+      "group": "core",
+      "link": "https://192.168.178.62/admin/",
+      "checks": [
+        {"type": "systemd", "unit": "pihole-FTL", "label": "systemd"},
+        {
+          "type": "command",
+          "cmd": ["dig", "+short", "+time=2", "+tries=1", "A", "example.com", "@127.0.0.1"],
+          "expect_stdout_regex": "\\d{1,3}(\\.\\d{1,3}){3}",
+          "label": "DNS",
+          "timeout": 6
+        },
+        {
+          "type": "http",
+          "url": "https://127.0.0.1/admin/",
+          "insecure": true,
+          "expect_status": [200, 302],
+          "label": "Web",
+          "timeout": 6
+        }
+      ]
+    },
+    {
+      "id": "samba",
+      "name": "Samba",
+      "group": "core",
+      "checks": [
+        {"type": "systemd", "unit": "smbd", "label": "systemd"},
+        {"type": "tcp", "host": "127.0.0.1", "port": 445, "label": "SMB", "timeout": 4}
+      ]
+    },
+    {
+      "id": "ssh",
+      "name": "SSH",
+      "group": "core",
+      "checks": [
+        {"type": "tcp", "host": "127.0.0.1", "port": 22, "label": "Port 22", "timeout": 4}
+      ]
+    },
+    {
+      "id": "syncthing",
+      "name": "Syncthing",
+      "group": "core",
+      "link": "http://192.168.178.62:8384/",
+      "checks": [
+        {"type": "systemd", "unit": "syncthing", "label": "systemd"},
+        {
+          "type": "http",
+          "url": "https://127.0.0.1:8384/rest/noauth/health",
+          "insecure": true,
+          "expect_status": [200],
+          "expect_json": {"status": "OK"},
+          "label": "Health",
+          "timeout": 5
+        }
+      ]
+    },
+    {
+      "id": "hdd_spin_down",
+      "name": "HDD Spin-Down",
+      "group": "core",
+      "notify": false,
+      "checks": [
+        {"type": "systemd", "unit": "hdd-spin-down", "label": "systemd"}
+      ]
+    },
+    {
+      "id": "pi_disk",
+      "name": "Disk /",
+      "group": "core",
+      "checks": [
+        {"type": "disk", "path": "/", "warn_percent": 80, "max_percent": 90, "label": "Disk"}
+      ]
+    },
+    {
+      "id": "pi_temp",
+      "name": "Temperatur",
+      "group": "core",
+      "checks": [
+        {"type": "temp", "warn_c": 75, "max_c": 82, "label": "CPU"}
+      ]
+    },
+    {
+      "id": "pi_memory",
+      "name": "Arbeitsspeicher",
+      "group": "core",
+      "checks": [
+        {"type": "memory", "warn_available_mb": 300, "min_available_mb": 150, "label": "RAM"}
+      ]
+    },
+    {
+      "id": "pi_failed_units",
+      "name": "Fehlgeschlagene Units",
+      "group": "core",
+      "notify_degraded": true,
+      "checks": [
+        {
+          "type": "failed_units",
+          "ignore": ["dphys-swapfile.service"],
+          "label": "systemd"
+        }
+      ]
+    },
+    {
+      "id": "occloudfree_backup",
+      "name": "BookOrbit Backup",
+      "group": "backups",
+      "checks": [
+        {
+          "type": "timer_age",
+          "unit": "occloudfree-backup.timer",
+          "service": "occloudfree-backup.service",
+          "max_age_seconds": 691200,
+          "label": "Timer"
+        }
+      ]
+    },
+    {
+      "id": "ente_backup_desktop",
+      "name": "Ente Backup (Desktop)",
+      "group": "backups",
+      "notify": true,
+      "notify_degraded": false,
+      "checks": [
+        {
+          "type": "heartbeat",
+          "path": "data/ente-backup.json",
+          "success_path": "data/ente-backup-success",
+          "warn_age_seconds": 259200,
+          "max_age_seconds": 604800,
+          "label": "Letzter Lauf"
+        }
+      ]
+    },
+    {
+      "id": "ente",
+      "name": "Ente Photos",
+      "group": "apps",
+      "link": "http://192.168.178.62:3005/",
+      "checks": [
+        {"type": "docker", "container": "ente-web", "label": "web"},
+        {"type": "docker", "container": "ente-museum", "label": "museum"},
+        {"type": "docker", "container": "ente-minio", "label": "minio"},
+        {"type": "docker", "container": "ente-postgres", "label": "postgres"},
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:8085/ping",
+          "expect_status": [200],
+          "expect_json": {"message": "pong"},
+          "label": "API",
+          "timeout": 6
+        },
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:3005/",
+          "expect_status": [200],
+          "label": "Web",
+          "timeout": 6
+        }
+      ]
+    },
+    {
+      "id": "gutschein",
+      "name": "Gutschein-Organizer",
+      "group": "apps",
+      "link": "http://192.168.178.62:5000/",
+      "checks": [
+        {"type": "systemd", "unit": "gutschein-organizer", "label": "systemd"},
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:5000/",
+          "expect_status": [200, 302],
+          "label": "HTTP",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "id": "jdownloader",
+      "name": "JDownloader",
+      "group": "apps",
+      "checks": [
+        {"type": "systemd", "unit": "jdownloader", "label": "systemd"},
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:9666/flash/",
+          "expect_status": [200],
+          "label": "Flash-API",
+          "timeout": 5
+        }
+      ]
+    },
+    {
+      "id": "epicgames",
+      "name": "EpicGames-Notifier",
+      "group": "apps",
+      "checks": [
+        {"type": "docker", "container": "epicgames-notifier", "label": "Container"},
+        {
+          "type": "command",
+          "cmd": ["docker", "logs", "--since", "8h", "--tail", "50", "epicgames-notifier"],
+          "expect_stdout_regex": "(Exiting successfully|No free games available)",
+          "label": "Letzter Lauf",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "id": "matter_server",
+      "name": "Matter Server",
+      "group": "home",
+      "checks": [
+        {"type": "docker", "container": "matter-server", "label": "Container"},
+        {"type": "tcp", "host": "127.0.0.1", "port": 5580, "label": "Port 5580", "timeout": 4}
+      ]
+    },
+    {
+      "id": "otbr",
+      "name": "OpenThread Border Router",
+      "group": "home",
+      "checks": [
+        {"type": "docker", "container": "otbr", "label": "Container"},
+        {
+          "type": "command",
+          "cmd": ["docker", "exec", "otbr", "ot-ctl", "state"],
+          "expect_stdout_regex": "^(router|leader|child)$",
+          "label": "Thread",
+          "timeout": 8
+        }
+      ]
+    },
+    {
+      "id": "ikea_bridge",
+      "name": "IKEA Remote Bridge",
+      "group": "home",
+      "checks": [
+        {"type": "systemd", "unit": "ikea-matter-remote", "label": "systemd"},
+        {
+          "type": "command",
+          "cmd": ["pgrep", "-f", "^python3 /data/bridge_remote.py$"],
+          "label": "Prozess",
+          "timeout": 8
+        }
+      ]
+    },
+    {
+      "id": "sniffer",
+      "name": "Steam Controller Sniffer",
+      "group": "media",
+      "link": "http://192.168.178.62:8088/",
+      "checks": [
+        {"type": "systemd", "unit": "sniffer", "label": "systemd"},
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:8088/",
+          "expect_status": [200],
+          "expect_json": {"status": "ok"},
+          "label": "Bridge",
+          "timeout": 5
+        }
+      ]
+    },
+    {
+      "id": "apple_tv_sideloader",
+      "name": "Apple TV Sideloader",
+      "group": "media",
+      "link": "http://192.168.178.62:5533/",
+      "checks": [
+        {"type": "docker", "container": "atvloadly", "label": "Container"},
+        {
+          "type": "http",
+          "url": "http://192.168.178.62:5533/healthcheck",
+          "expect_status": [200],
+          "expect_json": {"data.status": "healthy"},
+          "label": "Health",
+          "timeout": 6
+        }
+      ]
+    },
+    {
+      "id": "kaiengine",
+      "name": "Kaiengine",
+      "group": "media",
+      "checks": [
+        {"type": "systemd", "unit": "kaiengine", "label": "systemd"},
+        {"type": "tcp", "host": "127.0.0.1", "port": 34522, "label": "Port 34522", "timeout": 4}
+      ]
+    }
+  ]
+}

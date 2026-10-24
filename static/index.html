@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Homelab Monitor</title>
+<style>
+:root {
+  --bg: #0b1016;
+  --panel: #121a23;
+  --panel-2: #17222e;
+  --border: #243243;
+  --text: #e7edf4;
+  --muted: #8fa1b5;
+  --ok: #35c28b;
+  --warn: #e6b450;
+  --down: #ee6b6b;
+  --unknown: #77879a;
+  --accent: #69a7ff;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: radial-gradient(1200px 600px at 10% -10%, #142335 0%, var(--bg) 55%);
+  color: var(--text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1220px; margin: 0 auto; padding: 24px 18px 48px; }
+header { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { margin: 0; font-size: 1.25rem; letter-spacing: .2px; }
+.brand .sub { color: var(--muted); font-size: .85rem; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border); background: var(--panel);
+  border-radius: 999px; padding: 8px 13px; font-size: .85rem; white-space: nowrap;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--unknown); box-shadow: 0 0 0 4px rgba(119,135,154,.12); }
+.dot.up { background: var(--ok); box-shadow: 0 0 0 4px rgba(53,194,139,.14); }
+.dot.degraded { background: var(--warn); box-shadow: 0 0 0 4px rgba(230,180,80,.14); }
+.dot.down { background: var(--down); box-shadow: 0 0 0 4px rgba(238,107,107,.14); }
+button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer;
+}
+button:hover { border-color: #344a63; }
+.banner {
+  display: none; margin-bottom: 18px; padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid rgba(238,107,107,.45); background: rgba(238,107,107,.08); color: #ffd5d5;
+}
+.banner.show { display: block; }
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.stat .label { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; }
+.stat .value { font-size: 1.65rem; font-weight: 650; margin-top: 4px; }
+.stat .value.ok { color: var(--ok); }
+.stat .value.warn { color: var(--warn); }
+.stat .value.down { color: var(--down); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.metric { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; }
+.metric .k { color: var(--muted); font-size: .77rem; text-transform: uppercase; letter-spacing: .06em; }
+.metric .v { margin-top: 5px; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.metric .h { color: var(--muted); font-size: .8rem; margin-top: 2px; }
+h2 { font-size: 1rem; margin: 26px 0 12px; color: #c8d5e5; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.section-head span { color: var(--muted); font-size: .82rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.card {
+  position: relative; background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 15px 12px; overflow: hidden;
+}
+.card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--unknown); }
+.card.up::before { background: var(--ok); }
+.card.degraded::before { background: var(--warn); }
+.card.down::before { background: var(--down); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.card-title { font-weight: 650; font-size: .98rem; }
+.card-title a { color: var(--text); }
+.card-title a:hover { color: var(--accent); }
+.badge { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.badge.up { color: var(--ok); border-color: rgba(53,194,139,.35); background: rgba(53,194,139,.08); }
+.badge.degraded { color: var(--warn); border-color: rgba(230,180,80,.35); background: rgba(230,180,80,.08); }
+.badge.down { color: var(--down); border-color: rgba(238,107,107,.35); background: rgba(238,107,107,.08); }
+.msg { color: #c2cfdd; font-size: .86rem; margin: 9px 0 10px; word-break: break-word; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: .77rem; font-variant-numeric: tabular-nums; }
+details { margin-top: 9px; border-top: 1px solid var(--border); padding-top: 8px; }
+summary { cursor: pointer; color: var(--muted); font-size: .78rem; }
+details ul { list-style: none; margin: 8px 0 0; padding: 0; }
+details li { display: flex; gap: 8px; justify-content: space-between; font-size: .78rem; padding: 3px 0; border-bottom: 1px dashed rgba(36,50,67,.65); }
+details li:last-child { border-bottom: 0; }
+.danger { color: var(--down); }
+.warning { color: var(--warn); }
+.good { color: var(--ok); }
+.muted { color: var(--muted); }
+.incidents { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.incident { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: .86rem; }
+.incident:last-child { border-bottom: 0; }
+.incident .left { display: flex; gap: 10px; align-items: baseline; }
+.incident .name { font-weight: 600; }
+.incident .time { color: var(--muted); font-size: .78rem; }
+.incident .duration { color: var(--muted); font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); padding: 14px; font-size: .87rem; }
+.footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; color: var(--muted); font-size: .78rem; }
+.tag { display: inline-block; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; font-size: .74rem; color: var(--muted); }
+@media (max-width: 720px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wrap { padding: 16px 12px 36px; }
+  .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="dot" id="overall-dot"></div>
+      <div>
+        <h1>Homelab Monitor</h1>
+        <div class="sub" id="subtitle">Lade Status …</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="pill" id="stale-pill"><span class="dot" id="stale-dot"></span><span id="stale-text">Verbinde …</span></span>
+      <button id="refresh" type="button">Aktualisieren</button>
+    </div>
+  </header>
+
+  <div class="banner" id="stale-banner"></div>
+
+  <section class="summary" aria-label="Zusammenfassung">
+    <div class="stat"><div class="label">OK</div><div class="value ok" id="count-up">–</div></div>
+    <div class="stat"><div class="label">Warnungen</div><div class="value warn" id="count-degraded">–</div></div>
+    <div class="stat"><div class="label">Ausfälle</div><div class="value down" id="count-down">–</div></div>
+    <div class="stat"><div class="label">Gesamt</div><div class="value" id="count-total">–</div></div>
+  </section>
+
+  <section class="grid" id="system" aria-label="System"></section>
+
+  <div id="groups"></div>
+
+  <section>
+    <div class="section-head"><h2>Vorfälle (7 Tage)</h2><span id="incident-count"></span></div>
+    <div class="incidents" id="incidents"><div class="empty">Lade Vorfälle …</div></div>
+  </section>
+
+  <section id="not-monitored-section">
+    <div class="section-head"><h2>Nicht überwacht</h2><span>bewusst ausgenommen</span></div>
+    <div id="not-monitored" class="meta"></div>
+  </section>
+
+  <footer class="footer">
+    <span id="monitor-info">Monitor: –</span>
+    <span><a href="/api/status">JSON</a> · <a href="/healthz">Health</a></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  let timer = null;
+  let refreshSeconds = 20;
+
+  const $ = (id) => document.getElementById(id);
+  const escapeHtml = (value) => String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  const labels = { up: "OK", degraded: "WARNUNG", down: "AUSFALL", unknown: "UNBEKANNT" };
+
+  function fmtDuration(seconds) {
+    const total = Math.max(0, Math.round(Number(seconds) || 0));
+    if (total < 60) return total + " Sek.";
+    const minutes = Math.floor(total / 60);
+    if (minutes < 60) return minutes + " Min.";
+    const hours = Math.floor(minutes / 60);
+    const restMin = minutes % 60;
+    if (hours < 24) return hours + " Std." + (restMin ? " " + restMin + " Min." : "");
+    const days = Math.floor(hours / 24);
+    const restHours = hours % 24;
+    return days + " Tg." + (restHours ? " " + restHours + " Std." : "");
+  }
+
+  function fmtAge(iso) {
+    if (!iso) return "–";
+    const then = new Date(iso).getTime();
+    if (!isFinite(then)) return "–";
+    return fmtDuration((Date.now() - then) / 1000);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "–";
+    const date = new Date(iso);
+    if (!isFinite(date.getTime())) return "–";
+    return date.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function setDot(el, status) {
+    el.className = "dot " + (status || "unknown");
+  }
+
+  function metric(label, value, hint) {
+    return '<div class="metric"><div class="k">' + escapeHtml(label) + '</div><div class="v">' +
+      escapeHtml(value) + '</div>' + (hint ? '<div class="h">' + escapeHtml(hint) + '</div>' : '') + '</div>';
+  }
+
+  function renderSystem(system) {
+    const mem = system.memory || {};
+    const disk = system.disk || {};
+    const load = (system.load || []).map((v) => Number(v).toFixed(2)).join(" / ");
+    const temp = system.temperature_c == null ? "–" : Number(system.temperature_c).toFixed(1) + " °C";
+    const failed = (system.failed_units || []).length;
+    $("system").innerHTML = [
+      metric("Host", system.hostname || "–", "Kernel " + (system.kernel || "–")),
+      metric("Uptime", system.uptime_human || "–", "seit dem letzten Start"),
+      metric("Load (1/5/15)", load || "–", (system.cpu_count || "?") + " CPUs"),
+      metric("RAM verfügbar", (Number(mem.available_mb || 0) / 1024).toFixed(1) + " GB", Number(mem.used_percent || 0).toFixed(0) + "% belegt von " + (Number(mem.total_mb || 0) / 1024).toFixed(1) + " GB"),
+      metric("Disk /", Number(disk.percent || 0).toFixed(1) + "%", Number(disk.free_gb || 0).toFixed(1) + " GB frei von " + Number(disk.total_gb || 0).toFixed(0) + " GB"),
+      metric("Temperatur", temp, "CPU"),
+      metric("Swap", Number(mem.swap_percent || 0).toFixed(0) + "%", "zram aktiv"),
+      metric("Fehlgeschlagene Units", String(failed), failed ? (system.failed_units || []).join(", ") : "keine")
+    ].join("");
+  }
+
+  function renderCheck(item) {
+    const status = item.status || "unknown";
+    const meta = [];
+    if (item.uptime_7d != null) meta.push("7 Tage: " + Number(item.uptime_7d).toFixed(1) + "%");
+    if (item.latency_ms) meta.push("Antwort: " + item.latency_ms + " ms");
+    if (item.last_checked) meta.push("Geprüft: " + fmtAge(item.last_checked));
+    const title = item.link
+      ? '<a href="' + escapeHtml(item.link) + '" target="_blank" rel="noreferrer">' + escapeHtml(item.name) + '</a>'
+      : escapeHtml(item.name);
+    let details = "";
+    const subs = item.details && Array.isArray(item.details.subchecks) ? item.details.subchecks : [];
+    if (subs.length) {
+      details = '<details><summary>Teilprüfungen (' + subs.length + ')</summary><ul>' +
+        subs.map((sub) => '<li><span class="' + (sub.status === "up" ? "good" : sub.status === "down" ? "danger" : "warning") + '">' +
+          escapeHtml(sub.label || "?") + '</span><span class="muted">' + escapeHtml(sub.message || "") + '</span></li>').join("") +
+        '</ul></details>';
+    }
+    const since = item.since ? "seit " + fmtDate(item.since) : "";
+    return '<article class="card ' + status + '"><div class="card-head"><div class="card-title">' + title +
+      '</div><span class="badge ' + status + '">' + (labels[status] || status) + '</span></div>' +
+      '<div class="msg">' + escapeHtml(item.message || "") + '</div>' +
+      '<div class="meta">' + meta.map((value) => '<span>' + escapeHtml(value) + '</span>').join("") +
+      (since ? '<span>' + escapeHtml(since) + '</span>' : '') + '</div>' + details + '</article>';
+  }
+
+  function renderGroups(groups) {
+    $("groups").innerHTML = groups.map((group) =>
+      '<section><div class="section-head"><h2>' + escapeHtml(group.name) + '</h2><span>' + group.checks.length + ' Dienste</span></div>' +
+      '<div class="cards">' + group.checks.map(renderCheck).join("") + '</div></section>'
+    ).join("");
+  }
+
+  function renderIncidents(incidents) {
+    if (!incidents.length) {
+      $("incidents").innerHTML = '<div class="empty">Keine Vorfälle in den letzten 7 Tagen.</div>';
+      $("incident-count").textContent = "";
+      return;
+    }
+    $("incident-count").textContent = incidents.length + " insgesamt";
+    $("incidents").innerHTML = incidents.map((incident) =>
+      '<div class="incident"><div class="left"><span class="dot ' + (incident.ongoing ? "down" : "degraded") + '"></span>' +
+      '<span class="name">' + escapeHtml(incident.name) + '</span>' +
+      '<span class="time">' + fmtDate(incident.started_at) + (incident.ongoing ? " – andauernd" : " – " + fmtDate(incident.ended_at)) + '</span></div>' +
+      '<span class="duration">' + (incident.ongoing ? "läuft seit " + fmtAge(incident.started_at) : fmtDuration(incident.duration_seconds)) + '</span></div>'
+    ).join("");
+  }
+
+  function renderNotMonitored(items) {
+    const section = $("not-monitored-section");
+    if (!items || !items.length) {
+      section.style.display = "none";
+      return;
+    }
+    section.style.display = "";
+    $("not-monitored").innerHTML = items.map((item) =>
+      '<span class="tag" title="' + escapeHtml(item.reason || "") + '">' + escapeHtml(item.name) + '</span>'
+    ).join(" ");
+  }
+
+  function render(data) {
+    const overall = data.overall || "unknown";
+    setDot($("overall-dot"), overall);
+    $("subtitle").textContent = (data.system && data.system.hostname ? data.system.hostname : "Homelab") +
+      " · Stand " + fmtDate(data.generated_at);
+    const summary = data.summary || {};
+    $("count-up").textContent = summary.up == null ? "–" : summary.up;
+    $("count-degraded").textContent = summary.degraded == null ? "–" : summary.degraded;
+    $("count-down").textContent = summary.down == null ? "–" : summary.down;
+    $("count-total").textContent = summary.total == null ? "–" : summary.total;
+
+    const monitor = data.monitor || {};
+    refreshSeconds = Math.max(10, Number(monitor.dashboard_refresh_seconds) || 20);
+    const stale = Boolean(monitor.stale);
+    setDot($("stale-dot"), stale ? "down" : "up");
+    $("stale-text").textContent = stale ? "Daten veraltet" : "Daten aktuell";
+    const banner = $("stale-banner");
+    if (stale) {
+      banner.textContent = "Die Überwachungsdaten sind veraltet. Letzter Check: " + fmtAge(monitor.last_cycle_at) + ".";
+      banner.classList.add("show");
+    } else {
+      banner.classList.remove("show");
+    }
+
+    renderSystem(data.system || {});
+    renderGroups(data.groups || []);
+    renderIncidents(data.incidents || []);
+    renderNotMonitored(data.not_monitored || []);
+
+    $("monitor-info").textContent = "Letzter Zyklus: " + fmtAge(monitor.last_cycle_at) +
+      " · Nächster Check: " + (monitor.next_check_at ? fmtDate(monitor.next_check_at) : "–") +
+      " · Telegram: " + (monitor.telegram_configured ? "aktiv" : "nicht konfiguriert") +
+      " · Wochenbericht: " + (monitor.weekly_label || "–");
+  }
+
+  function showError(error) {
+    $("subtitle").textContent = "Dashboard nicht erreichbar";
+    setDot($("overall-dot"), "down");
+    const banner = $("stale-banner");
+    banner.textContent = "Fehler beim Laden des Status: " + error;
+    banner.classList.add("show");
+  }
+
+  async function refresh() {
+    try {
+      const response = await fetch("/api/status", { cache: "no-store" });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      render(await response.json());
+    } catch (error) {
+      showError(error && error.message ? error.message : String(error));
+    } finally {
+      schedule();
+    }
+  }
+
+  function schedule() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (document.visibilityState === "hidden") {
+        schedule();
+      } else {
+        refresh();
+      }
+    }, refreshSeconds * 1000);
+  }
+
+  $("refresh").addEventListener("click", () => {
+    if (timer) clearTimeout(timer);
+    refresh();
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
