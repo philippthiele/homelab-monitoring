@@ -44,6 +44,15 @@ header { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify
 .dot.up { background: var(--ok); box-shadow: 0 0 0 4px rgba(53,194,139,.14); }
 .dot.degraded { background: var(--warn); box-shadow: 0 0 0 4px rgba(230,180,80,.14); }
 .dot.down { background: var(--down); box-shadow: 0 0 0 4px rgba(238,107,107,.14); }
+.quicklinks { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 16px; }
+.qlink {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); background: linear-gradient(180deg, rgba(105,167,255,.12) 0%, var(--panel) 100%);
+  border-radius: 999px; padding: 7px 12px; font-size: .86rem; color: var(--text);
+  text-decoration: none; white-space: nowrap;
+}
+.qlink:hover { border-color: #3a5a7a; text-decoration: none; }
+.qlink .arrow { color: var(--muted); font-size: .8rem; }
 button {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer;
@@ -129,6 +138,8 @@ details li:last-child { border-bottom: 0; }
       <button id="refresh" type="button">Aktualisieren</button>
     </div>
   </header>
+
+  <nav class="quicklinks" id="quicklinks" aria-label="Webdienste"></nav>
 
   <div class="banner" id="stale-banner"></div>
 
@@ -284,7 +295,41 @@ details li:last-child { border-bottom: 0; }
     ).join(" ");
   }
 
+  const WEB_SERVICES = [
+    {name:"Caddy", lan:"http://192.168.178.62/", ts:"http://100.125.255.120/"},
+    {name:"Pi-hole", lan:"https://192.168.178.62/admin/", ts:"https://100.125.255.120/admin/"},
+    {name:"Syncthing", lan:"http://192.168.178.62:8384/", ts:"http://100.125.255.120:8384/"},
+    {name:"Ente Photos", lan:"http://192.168.178.62:3005/", ts:"http://100.125.255.120:3005/"},
+    {name:"Gutschein-Organizer", lan:"http://192.168.178.62:5000/", ts:"http://100.125.255.120:5000/"},
+    {name:"JDownloader", lan:"http://192.168.178.62:9666/", ts:"http://100.125.255.120:9666/"},
+    {name:"Steam Controller Sniffer", lan:"http://192.168.178.62:8088/", ts:"http://100.125.255.120:8088/"},
+    {name:"Apple TV Sideloader", lan:"http://192.168.178.62:5533/", ts:"http://100.125.255.120:5533/"},
+    {name:"Dashboard", lan:"http://192.168.178.62:8090/", ts:"http://100.125.255.120:8090/"}
+  ];
+  function isTailscale() {
+    var host = location.hostname;
+    if (host === "100.125.255.120") return true;
+    if (host.indexOf("tail") !== -1) return true;
+    if (host.indexOf("100.") === 0) return true;
+    if (host === "192.168.178.62") return false;
+    if (host.indexOf("192.168.") === 0) return false;
+    if (host.indexOf("10.") === 0) return false;
+    if (host.indexOf("172.") === 0) return false;
+    if (host === "localhost" || host === "127.0.0.1") return false;
+    return false;
+  }
+  function renderQuickLinks() {
+    var nav = document.getElementById("quicklinks");
+    if (!nav) return;
+    var ts = isTailscale();
+    nav.innerHTML = WEB_SERVICES.map(function(s) {
+      var url = ts ? s.ts : s.lan;
+      return '<a class="qlink" href="' + escapeHtml(url) + '" target="_blank" rel="noreferrer"><span>' + escapeHtml(s.name) + '</span><span class="arrow">↗</span></a>';
+    }).join("");
+  }
+
   function render(data) {
+    try { renderQuickLinks(); } catch(e) {}
     const overall = data.overall || "unknown";
     setDot($("overall-dot"), overall);
     $("subtitle").textContent = (data.system && data.system.hostname ? data.system.hostname : "Homelab") +
