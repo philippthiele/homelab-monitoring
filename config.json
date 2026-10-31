@@ -354,6 +354,23 @@
       ]
     },
     {
+      "id": "ente_update",
+      "name": "Ente Update",
+      "group": "backups",
+      "notify": true,
+      "notify_degraded": false,
+      "checks": [
+        {
+          "type": "heartbeat",
+          "path": "data/ente-update.json",
+          "success_path": "data/ente-update-success",
+          "warn_age_seconds": 1036800,
+          "max_age_seconds": 1814400,
+          "label": "Letztes Update"
+        }
+      ]
+    },
+    {
       "id": "ente",
       "name": "Ente Photos",
       "group": "apps",
