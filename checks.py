@@ -10,7 +10,6 @@ import re
 import shlex
 import shutil
 import socket
-import sqlite3
 import ssl
 import time
 import urllib.error
